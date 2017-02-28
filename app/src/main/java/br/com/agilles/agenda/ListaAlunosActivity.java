@@ -1,11 +1,15 @@
 package br.com.agilles.agenda;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.provider.Browser;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.ContextMenu;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
@@ -14,8 +18,10 @@ import android.widget.Button;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import java.net.URI;
 import java.util.List;
 
+import br.com.agilles.agenda.adapter.AlunosAdapter;
 import br.com.agilles.agenda.dao.AlunoDAO;
 import br.com.agilles.agenda.modelo.Aluno;
 
@@ -62,20 +68,72 @@ public class ListaAlunosActivity extends AppCompatActivity {
         carregarLista();
     }
 
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_lista_alunos, menu);
+
+        return true;
+
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.menu_enviar_notas:
+                Toast.makeText(this,"Enviando notas...", Toast.LENGTH_SHORT).show();
+                break;
+
+        }
+    }
+
     private void carregarLista() {
         AlunoDAO dao = new AlunoDAO(this);
         List<Aluno> listaAlunos = dao.buscaAlunos();
         dao.close();
 
-        ArrayAdapter<Aluno> adapter = new ArrayAdapter<Aluno>(this, android.R.layout.simple_list_item_1, listaAlunos);
+        AlunosAdapter adapter = new AlunosAdapter(this, listaAlunos);
         listaALunos.setAdapter(adapter);
     }
 
     @Override
     public void onCreateContextMenu(ContextMenu menu, View v, final ContextMenu.ContextMenuInfo menuInfo) {
 
+
         AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) menuInfo;
         final Aluno aluno = (Aluno) listaALunos.getItemAtPosition(info.position);
+
+        MenuItem ligar = menu.add("Ligar");
+        ligar.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+
+                if (ActivityCompat.checkSelfPermission(ListaAlunosActivity.this, Manifest.permission.CALL_PHONE)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(ListaAlunosActivity.this, new String[]{Manifest.permission.CALL_PHONE}, 123);
+
+                }else {
+                    Intent intentLigar = new Intent(Intent.ACTION_CALL);
+                    intentLigar.setData(Uri.parse("tel:" + aluno.getTelefone()));
+                    startActivity(intentLigar);
+                }
+
+                return false;
+            }
+
+        });
+
+
+        MenuItem itemSMS = menu.add("Enviar sms");
+
+        Intent intentSMS = new Intent(Intent.ACTION_VIEW);
+        intentSMS.setData(Uri.parse("sms:" + aluno.getTelefone()));
+        itemSMS.setIntent(intentSMS);
+
+        MenuItem itemMapa = menu.add("Visualizar no Mapa");
+        Intent intentMapa = new Intent((Intent.ACTION_VIEW));
+        intentMapa.setData(Uri.parse("geo:0,0?q=" + aluno.getEndereco()));
+        itemMapa.setIntent(intentMapa);
+
 
         MenuItem deletar = menu.add("Deletar");
         deletar.setOnMenuItemClickListener(new MenuItem.OnMenuItemClickListener() {
@@ -94,8 +152,8 @@ public class ListaAlunosActivity extends AppCompatActivity {
 
         String site = aluno.getSite();
 
-        if(!site.startsWith("http://")){
-            site = "http://"+site;
+        if (!site.startsWith("http://")) {
+            site = "http://" + site;
         }
         Intent intentVisitarSite = new Intent(Intent.ACTION_VIEW);
         intentVisitarSite.setData(Uri.parse(site));
